@@ -141,13 +141,7 @@ func (c *Client) GetOrders(ctx context.Context, filter *broker.OrderFilter) ([]*
 		}
 
 		// Determine if order is reduce-only (closing position)
-		// BingX: SELL+LONG = closing long position
-		// BingX: BUY+SHORT = closing short position
-		reduceOnly := false
-		if (o.Side == "SELL" && o.PositionSide == "LONG") ||
-			(o.Side == "BUY" && o.PositionSide == "SHORT") {
-			reduceOnly = true
-		}
+		reduceOnly := isReduceOnly(o.Side, o.PositionSide)
 
 		// Apply filter if specified
 		if filter != nil && filter.Side != nil && *filter.Side != broker.OrderStatus(o.Status) {
@@ -238,4 +232,11 @@ func (c *Client) CancelAllOrders(ctx context.Context, symbol string) error {
 	}
 
 	return nil
+}
+
+// isReduceOnly determines if an order is reduce-only based on Side and PositionSide
+// BingX: SELL+LONG = closing long position, BUY+SHORT = closing short position
+func isReduceOnly(side, positionSide string) bool {
+	return (side == "SELL" && positionSide == "LONG") ||
+		(side == "BUY" && positionSide == "SHORT")
 }
