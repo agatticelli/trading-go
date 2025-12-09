@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gattimassimo/trading-go/broker"
+	"github.com/agatticelli/trading-go/broker"
 )
 
 // Client implements broker.Broker interface for BingX

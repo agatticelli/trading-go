@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/gattimassimo/trading-go/broker"
+	"github.com/agatticelli/trading-go/broker"
 )
 
 // GetBalance retrieves account balance
