@@ -129,12 +129,24 @@ func (c *Client) GetOrders(ctx context.Context, filter *broker.OrderFilter) ([]*
 
 	var orders []*broker.Order
 	for _, o := range response.Data.Orders {
-		// Determine side
+		// Determine side based on PositionSide (which side of the position this order affects)
+		// Note: BingX uses PositionSide (LONG/SHORT) to indicate position direction
+		// and Side (BUY/SELL) to indicate order action
+		// For our purposes, we map PositionSide to broker.Side
 		var side broker.Side
 		if o.PositionSide == "LONG" {
 			side = broker.SideLong
 		} else {
 			side = broker.SideShort
+		}
+
+		// Determine if order is reduce-only (closing position)
+		// BingX: SELL+LONG = closing long position
+		// BingX: BUY+SHORT = closing short position
+		reduceOnly := false
+		if (o.Side == "SELL" && o.PositionSide == "LONG") ||
+			(o.Side == "BUY" && o.PositionSide == "SHORT") {
+			reduceOnly = true
 		}
 
 		// Apply filter if specified
@@ -164,6 +176,7 @@ func (c *Client) GetOrders(ctx context.Context, filter *broker.OrderFilter) ([]*
 			StopPrice:     stopPrice,
 			FilledSize:    filledSize,
 			AveragePrice:  avgPrice,
+			ReduceOnly:    reduceOnly,
 			TimeInForce:   broker.TimeInForce(o.TimeInForce),
 			CreatedAt:     time.Unix(o.Time/1000, 0),
 			UpdatedAt:     time.Unix(o.UpdateTime/1000, 0),
