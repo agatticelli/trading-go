@@ -84,6 +84,26 @@ func (c *Client) PlaceOrder(ctx context.Context, order *broker.OrderRequest) (*b
 	}, nil
 }
 
+// mapBingXStatus normalizes BingX order status to user-friendly status
+// For trigger orders (STOP/TAKE_PROFIT), "NEW" means pending trigger, not active
+func mapBingXStatus(bingxStatus string, orderType string) broker.OrderStatus {
+	// Trigger order types that should show as PENDING when status is NEW
+	triggerTypes := map[string]bool{
+		"STOP":                true,
+		"STOP_MARKET":         true,
+		"TAKE_PROFIT":         true,
+		"TAKE_PROFIT_MARKET":  true,
+	}
+
+	// If it's a trigger order with NEW status, map to PENDING
+	if triggerTypes[orderType] && bingxStatus == "NEW" {
+		return "PENDING"
+	}
+
+	// Otherwise return the status as-is
+	return broker.OrderStatus(bingxStatus)
+}
+
 // GetOrders retrieves open orders
 func (c *Client) GetOrders(ctx context.Context, filter *broker.OrderFilter) ([]*broker.Order, error) {
 	params := make(map[string]string)
@@ -129,13 +149,16 @@ func (c *Client) GetOrders(ctx context.Context, filter *broker.OrderFilter) ([]*
 		filledSize, _ := strconv.ParseFloat(o.ExecutedQty, 64)
 		avgPrice, _ := strconv.ParseFloat(o.AvgPrice, 64)
 
+		// Map BingX status to normalized status
+		status := mapBingXStatus(o.Status, o.Type)
+
 		orders = append(orders, &broker.Order{
 			ID:            fmt.Sprintf("%d", o.OrderId),
 			ClientOrderID: o.ClientOrderID,
 			Symbol:        o.Symbol,
 			Side:          side,
 			Type:          broker.OrderType(o.Type),
-			Status:        broker.OrderStatus(o.Status),
+			Status:        status,
 			Size:          size,
 			Price:         price,
 			StopPrice:     stopPrice,
