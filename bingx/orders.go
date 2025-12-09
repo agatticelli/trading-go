@@ -98,7 +98,9 @@ func (c *Client) GetOrders(ctx context.Context, filter *broker.OrderFilter) ([]*
 
 	var response OpenOrdersResponse
 	if err := json.Unmarshal(body, &response); err != nil {
-		return nil, broker.NewBrokerError("bingx", "PARSE_ERROR", "Failed to parse orders response", err)
+		// Add the response body to the error for debugging
+		return nil, broker.NewBrokerError("bingx", "PARSE_ERROR",
+			fmt.Sprintf("Failed to parse orders response: %s. Body: %s", err.Error(), string(body)), err)
 	}
 
 	if response.Code != APISuccessCode {
@@ -106,7 +108,7 @@ func (c *Client) GetOrders(ctx context.Context, filter *broker.OrderFilter) ([]*
 	}
 
 	var orders []*broker.Order
-	for _, o := range response.Data {
+	for _, o := range response.Data.Orders {
 		// Determine side
 		var side broker.Side
 		if o.PositionSide == "LONG" {

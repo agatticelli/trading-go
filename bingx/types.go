@@ -136,9 +136,11 @@ type OpenOrderData struct {
 }
 
 type OpenOrdersResponse struct {
-	Code int             `json:"code"`
-	Data []OpenOrderData `json:"data"`
-	Msg  string          `json:"msg"`
+	Code int `json:"code"`
+	Data struct {
+		Orders []OpenOrderData `json:"orders"`
+	} `json:"data"`
+	Msg string `json:"msg"`
 }
 
 type PriceResponse struct {
