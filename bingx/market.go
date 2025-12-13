@@ -38,10 +38,15 @@ func (c *Client) GetCurrentPrice(ctx context.Context, symbol string) (float64, e
 }
 
 // SetLeverage sets leverage for a symbol
+// Note: BingX uses "BOTH" for one-way mode (default), or "LONG"/"SHORT" for hedge mode
 func (c *Client) SetLeverage(ctx context.Context, symbol string, side string, leverage int) error {
+	// BingX expects "BOTH" for one-way mode (default position mode)
+	// In one-way mode, there's only one position per symbol
+	leverageSide := "BOTH"
+
 	params := map[string]string{
 		"symbol":   symbol,
-		"side":     side,
+		"side":     leverageSide,
 		"leverage": strconv.Itoa(leverage),
 	}
 
