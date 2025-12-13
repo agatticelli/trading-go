@@ -45,8 +45,28 @@ func (c *Client) PlaceOrder(ctx context.Context, order *broker.OrderRequest) (*b
 		params["reduceOnly"] = "true"
 	}
 
-	// Execute request
-	body, err := c.makeRequest(ctx, "POST", EndpointPlaceOrder, params)
+	// Add Stop Loss as JSON string (BingX format)
+	if order.StopLoss != nil {
+		stopLossJSON := fmt.Sprintf(`{"type":"STOP","stopPrice":%g,"price":%g,"workingType":"MARK_PRICE"}`,
+			order.StopLoss.TriggerPrice, order.StopLoss.TriggerPrice)
+		params["stopLoss"] = stopLossJSON
+	}
+
+	// Add Take Profit as JSON string (BingX format)
+	if order.TakeProfit != nil {
+		takeProfitJSON := fmt.Sprintf(`{"type":"TAKE_PROFIT","stopPrice":%g,"price":%g,"workingType":"MARK_PRICE"}`,
+			order.TakeProfit.TriggerPrice, order.TakeProfit.OrderPrice)
+		params["takeProfit"] = takeProfitJSON
+	}
+
+	// Execute request - use special payload method if TP/SL present (they contain JSON)
+	var body []byte
+	var err error
+	if order.StopLoss != nil || order.TakeProfit != nil {
+		body, err = c.makeRequestWithPayload(ctx, "POST", EndpointPlaceOrder, params)
+	} else {
+		body, err = c.makeRequest(ctx, "POST", EndpointPlaceOrder, params)
+	}
 	if err != nil {
 		return nil, err
 	}

@@ -9,7 +9,9 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/agatticelli/trading-go/broker"
@@ -85,6 +87,79 @@ func (c *Client) makeRequest(ctx context.Context, method, endpoint string, param
 	signature := c.sign(queryString)
 
 	// Add signature to URL
+	fullURL := fmt.Sprintf("%s%s?%s&signature=%s", c.baseURL, endpoint, queryString, signature)
+
+	// Create request
+	req, err := http.NewRequestWithContext(ctx, method, fullURL, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request: %w", err)
+	}
+
+	// Only add API key header
+	req.Header.Set("X-BX-APIKEY", c.apiKey)
+
+	// Execute request
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, broker.NewBrokerError("bingx", "REQUEST_FAILED", "HTTP request failed", err)
+	}
+	defer resp.Body.Close()
+
+	// Read response
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return nil, broker.NewBrokerError("bingx", "READ_FAILED", "Failed to read response", err)
+	}
+
+	// Check HTTP status
+	if resp.StatusCode != http.StatusOK {
+		return nil, broker.NewBrokerError("bingx", "HTTP_ERROR",
+			fmt.Sprintf("HTTP %d: %s", resp.StatusCode, string(body)), nil)
+	}
+
+	return body, nil
+}
+
+// makeRequestWithPayload makes HTTP request with special handling for JSON parameters
+// This is needed for orders with stopLoss/takeProfit which are sent as JSON strings
+func (c *Client) makeRequestWithPayload(ctx context.Context, method, endpoint string, params map[string]string) ([]byte, error) {
+	timestamp := time.Now().UnixMilli()
+
+	// Add timestamp
+	if params == nil {
+		params = make(map[string]string)
+	}
+	params["timestamp"] = strconv.FormatInt(timestamp, 10)
+
+	// Build parameters in sorted order
+	keys := make([]string, 0, len(params))
+	for k := range params {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	// First: Build parameters WITHOUT encoding for signature
+	paramPairsNoEncoding := make([]string, 0, len(keys))
+	for _, key := range keys {
+		paramPairsNoEncoding = append(paramPairsNoEncoding, key+"="+params[key])
+	}
+	queryStringForSignature := strings.Join(paramPairsNoEncoding, "&")
+
+	// Sign the NON-encoded parameters
+	signature := c.sign(queryStringForSignature)
+
+	// Second: Build parameters WITH URL encoding for the actual request
+	paramPairsEncoded := make([]string, 0, len(keys))
+	for _, key := range keys {
+		value := params[key]
+		// URL encode the value, replacing + with %20
+		encodedValue := url.QueryEscape(value)
+		encodedValue = strings.ReplaceAll(encodedValue, "+", "%20")
+		paramPairsEncoded = append(paramPairsEncoded, key+"="+encodedValue)
+	}
+	queryString := strings.Join(paramPairsEncoded, "&")
+
+	// Build full URL
 	fullURL := fmt.Sprintf("%s%s?%s&signature=%s", c.baseURL, endpoint, queryString, signature)
 
 	// Create request
