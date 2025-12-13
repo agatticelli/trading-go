@@ -93,9 +93,8 @@ func (c *Client) makeRequest(ctx context.Context, method, endpoint string, param
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Add headers
+	// Only add API key header
 	req.Header.Set("X-BX-APIKEY", c.apiKey)
-	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request
 	resp, err := c.httpClient.Do(req)

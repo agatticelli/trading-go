@@ -155,8 +155,14 @@ type PriceResponse struct {
 type LeverageResponse struct {
 	Code int `json:"code"`
 	Data struct {
-		Symbol   string `json:"symbol"`
-		Leverage string `json:"leverage"`
+		Symbol             string          `json:"symbol"`
+		Leverage           json.RawMessage `json:"leverage"` // Can be string or number
+		AvailableLongVol   string          `json:"availableLongVol"`
+		AvailableShortVol  string          `json:"availableShortVol"`
+		AvailableLongVal   string          `json:"availableLongVal"`
+		AvailableShortVal  string          `json:"availableShortVal"`
+		MaxPositionLongVal string          `json:"maxPositionLongVal"`
+		MaxPositionShortVal string         `json:"maxPositionShortVal"`
 	} `json:"data"`
 	Msg string `json:"msg"`
 }
